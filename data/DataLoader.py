@@ -1,11 +1,39 @@
 import numpy as np
-# import re
+import argparse
+# import lmdb
+
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    '-i',
+    '--inputFile',
+    type=str,
+    default='./landlord_test.log',
+    help='the path towards the log file in order to read data'
+)
+parser.add_argument(
+    '-pid',
+    '--personID',
+    type=int,
+    default=0,
+    help=(
+        'the ID for the player (winner).'
+        '0:landlord, 1:landlor_down, 2:landlord_up')
+)
+parser.add_argument(
+    '-s',
+    '--save_dir',
+    type=str,
+    help='The generated mdb file save dir',
+    default='./train'
+)
+opt = parser.parse_args()
+print(opt)
 
 
 def split_handcards(cards):
     # Split Cards Series into a prettier list
     r""" Handcards string spliter
-    Split Cards Series into a prettier list
+    Split Cards Series into a prettier list which sorted DESCEDNING
 
     Args:
         cards: a string, which indicate a group of cards
@@ -15,6 +43,10 @@ def split_handcards(cards):
 
     """
     hand_cards = []
+    cards_rank = [
+        '3', '4', '5', '6', '7', '8', '9', '10',
+        'J', 'Q', 'K', 'A', '2', 'X', 'D'
+    ]
     for card in cards:
         # NOTE: '10' contrains 2 chars which should be seperately considered
         if card != '1' and card != '0':
@@ -25,6 +57,14 @@ def split_handcards(cards):
             pass
         else:
             pass
+    # sort
+    length = len(hand_cards)
+    for index in range(length):
+        for i in range(1, length - index):
+            if (
+                cards_rank.index(hand_cards[i - 1]) <
+                    cards_rank.index(hand_cards[i])):
+                hand_cards[i-1], hand_cards[i] = hand_cards[i], hand_cards[i-1]
 
     return hand_cards
 
@@ -1748,6 +1788,7 @@ def generate_game_process(
             )
             # Get winner's current playing cards as label
             step_label = landlord_steps[i]
+            # print('process: {}'.format(step_label))
             step_label_index, _, _ = label_str2int(step_label)
             steps_data.append(step_data)
             steps_label.append(step_label)
@@ -1938,8 +1979,12 @@ if __name__ == "__main__":
     #             .format(label_str, type_descip, index_cur, index)
     #         )
 
-    with open('landlord_simplest.log', 'rt') as f_1:
+    with open(opt.inputFile, 'rt') as f_1:
         cnt = 1
+
+        np_array_data = None
+        np_array_label = None
+        np_array_flag = False
 
         for line in f_1:
 
@@ -1964,10 +2009,14 @@ if __name__ == "__main__":
             cards_landlord_public = split_handcards(cards_landlord_public)
 
             # convert list to binary numpy array
-            cards_landlord_array = cards_rank_encode(cards_landlord)
-            cards_landlord_down_array = cards_rank_encode(cards_landlord_down)
-            cards_landlord_up_array = cards_rank_encode(cards_landlord_up)
-            cards_landlord_public_array = cards_rank_encode(cards_landlord_public)
+            cards_landlord_array = \
+                cards_rank_encode(cards_landlord)
+            cards_landlord_down_array = \
+                cards_rank_encode(cards_landlord_down)
+            cards_landlord_up_array = \
+                cards_rank_encode(cards_landlord_up)
+            cards_landlord_public_array = \
+                cards_rank_encode(cards_landlord_public)
 
             # Add Pass to the Game Process
             (landlord_game, landlord_down_game,
@@ -1975,8 +2024,23 @@ if __name__ == "__main__":
 
             all_data, all_label, all_label_index = generate_game_process(
                 cards_landlord, cards_landlord_down, cards_landlord_up,
-                cards_landlord_public, game_process, '2'
+                cards_landlord_public, game_process, str(opt.personID)
             )
+
+            if not np_array_flag:
+                np_array_data = np.stack(all_data, axis=0)
+                np_array_label = np.stack(all_label_index, axis=0)
+                np_array_flag = True
+            else:
+                current_data = np.stack(all_data, axis=0)
+                np_array_data = np.concatenate(
+                    (np_array_data, current_data), axis=0
+                )
+                current_label = np.stack(all_label_index, axis=0)
+                np_array_label = np.concatenate(
+                    (np_array_label, current_label), axis=0
+                )
+
             # print
             # print('record {} landlord:'.format(cnt))
             # print(cards_landlord)
@@ -1990,18 +2054,38 @@ if __name__ == "__main__":
             # print('record {} landlord_public:'.format(cnt))
             # print(cards_landlord_public)
             # print(cards_landlord_public_array)
-            print('record of {} landlord game process:'.format(cnt))
-            print(landlord_game)
-            print('record of {} landlord_down game process:'.format(cnt))
-            print(landlord_down_game)
-            print('record of {} landlord_up game process:'.format(cnt))
-            print(landlord_up_game)
-            print('All data for states:')
-            print(all_data)
-            print('All labels:')
-            print(all_label)
-            print('All labels index:')
-            print(all_label_index)
-            print('record {} over!'.format(cnt))
+            # print('record of {} landlord game process:'.format(cnt))
+            # print(landlord_game)
+            # print('record of {} landlord_down game process:'.format(cnt))
+            # print(landlord_down_game)
+            # print('record of {} landlord_up game process:'.format(cnt))
+            # print(landlord_up_game)
+            # print('All data for states:')
+            # print(all_data)
+            # print(
+            #     'Type of the all_data: {}, Type of the data element: {}'
+            #     .format(type(all_data), type(all_data[0]))
+            # )
+            # print(
+            #     'Size of the all_data: {}, shape of the data element: {}'
+            #     .format(len(all_data), all_data[0].shape)
+            # )
+            # print('All labels:')
+            # print(all_label)
+            # print('All labels index:')
+            # print(all_label_index)
+            if cnt % 100 == 0:
+                print('record {} over!'.format(cnt))
 
             cnt += 1
+
+        print(
+            'shape of the np_all_data: {}'
+            .format(np_array_data.shape)
+        )
+        print(
+            'shape of the np_all_label: {}'
+            .format(np_array_label.shape)
+        )
+        np.save('all_state', np_array_data)
+        np.save('all_lable', np_array_label)
