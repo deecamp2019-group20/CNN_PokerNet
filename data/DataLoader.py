@@ -428,6 +428,16 @@ def is_trioChain(card_list):
 
 def is_quadr2single(card_list):
     # index starts from 1
+    # NOTE: the 2 single here could also be one pair of Double (2 SAME single)
+    r""" Find whether this is a 4 cards main group with 2 singles in list of cards
+
+    Args:
+        card_list: a list of card
+
+    Return:
+        index: the index of the detected comb among quadr2single (start from 1)
+        Boolen: whether this card_list is a quadr2single
+    """
     cards_rank_simple = [
         '3', '4', '5', '6', '7', '8', '9', '10',
         'J', 'Q', 'K', 'A', '2'
@@ -443,60 +453,64 @@ def is_quadr2single(card_list):
         if (
             card_list[0] == card_list[1] == card_list[2] == card_list[3] and
             card_list[4] != card_list[0] and
-            card_list[5] != card_list[0] and
-                card_list[4] != card_list[5]):
+                card_list[5] != card_list[0]):
             main_group_num = card_list[0]
+            # kicker_num_1 <= kicker_num_2
             kicker_num_1 = card_list[5]
             kicker_num_2 = card_list[4]
             # calculate index
-            index = cards_rank_simple.index(main_group_num) * 91
+            index = cards_rank_simple.index(main_group_num) * (91 + 12)
             for i in range(0, cards_rank_simple.index(kicker_num_1)):
-                index += (13 - i)
+                index += (14 - i)
             index += (
                 cards_rank_simple.index(kicker_num_2) -
-                cards_rank_simple.index(kicker_num_1)
+                cards_rank_simple.index(kicker_num_1) + 1
             )
             return index, True
 
         elif (
             card_list[1] == card_list[2] == card_list[3] == card_list[4] and
             card_list[0] != card_list[1] and
-            card_list[5] != card_list[1] and
-                card_list[0] != card_list[5]):
+                card_list[5] != card_list[1]):
             main_group_num = card_list[1]
             kicker_num_1 = card_list[5]
             kicker_num_2 = card_list[0]
             # calculate index
-            index = cards_rank_simple.index(main_group_num) * 91
+            index = cards_rank_simple.index(main_group_num) * (91 + 12)
             for i in range(0, cards_rank_simple.index(kicker_num_1)):
-                index += (13 - i)
+                index += (14 - i)
             index += (
                 cards_rank_all.index(kicker_num_2) -
-                cards_rank_all.index(kicker_num_1) - 1
+                cards_rank_all.index(kicker_num_1)
             )
             return index, True
 
         elif (
             card_list[2] == card_list[3] == card_list[4] == card_list[5] and
             card_list[0] != card_list[2] and
-            card_list[1] != card_list[2] and
-                card_list[0] != card_list[1]):
+                card_list[1] != card_list[2]):
             main_group_num = card_list[2]
             kicker_num_1 = card_list[1]
             kicker_num_2 = card_list[0]
             # calculate index
-            index = cards_rank_simple.index(main_group_num) * 91
+            index = cards_rank_simple.index(main_group_num) * (91 + 12)
             for i in range(0, cards_rank_all.index(kicker_num_1)):
                 if i < cards_rank_simple.index(main_group_num):
-                    index += (13 - i)
+                    index += (14 - i)
                 elif i == cards_rank_simple.index(main_group_num):
                     pass
                 else:
-                    index += (14 - i)
-            index += (
-                cards_rank_all.index(kicker_num_2) -
-                cards_rank_all.index(kicker_num_1)
-            )
+                    index += (15 - i)
+            if kicker_num_1 == 'X':
+                index += (
+                    cards_rank_all.index(kicker_num_2) -
+                    cards_rank_all.index(kicker_num_1)
+                )
+            else:
+                index += (
+                    cards_rank_all.index(kicker_num_2) -
+                    cards_rank_all.index(kicker_num_1) + 1
+                )
             return index, True
         else:
             return -1, False
@@ -1442,10 +1456,10 @@ def is_planeDoubleWing(card_list):
 
 def label_str2int(label_str):
     r""" Generate the int-style card_combs from str-comb
-    The total elements of card_combs is 13551 (contains PASS).
+    The total elements of card_combs is 13707 (contains PASS).
     When training in neural networks, the label and output of the NN
     should be one-hot tensors. Thus, when doing training, the output
-    needed to be coverted from str to one-hot tensor (index).
+    needed to be coverted from str to int (index), one-hot is not necessary.
 
     Args:
         label_str: the str-style of the specific cards_comb
@@ -1648,21 +1662,21 @@ def label_str2int(label_str):
         indexQuadr2Double, isQuadr2Double = is_quadr2double(label_list)
         if isQuadr2Double:
             return (
-                1710 + indexQuadr2Double - 1,
+                1866 + indexQuadr2Double - 1,
                 indexQuadr2Double - 1, 'Quadr2Double')
 
         (indexPlaneSingleWing,
             isPlaneSingleWing) = is_planeSingleWing(label_list)
         if isPlaneSingleWing:
             return (
-                2568 + indexPlaneSingleWing - 1,
+                2724 + indexPlaneSingleWing - 1,
                 indexPlaneSingleWing - 1, 'PlaneSingleWing')
 
         (indexPlaneDoubleWing,
             isPlaneDoubleWing) = is_planeDoubleWing(label_list)
         if isPlaneDoubleWing:
             return (
-                10612 + indexPlaneDoubleWing - 1,
+                10768 + indexPlaneDoubleWing - 1,
                 indexPlaneDoubleWing - 1, 'PlaneDoubleWing')
 
         else:
@@ -1674,7 +1688,7 @@ def label_str2int(label_str):
 
 def label_int2str(cards_int):
     r""" Generate the str-style card_combs from int index
-    The total elements of card_combs is 13551 (contains PASS).
+    The total elements of card_combs is 13707 (contains PASS).
     When training in neural networks, the label and output of the NN
     should be one-hot tensors. Thus, when doing inference, the output
     needed to be coverted from one-hot tensor (or just index) to str.
@@ -1957,28 +1971,6 @@ if __name__ == "__main__":
     Need to make Unit-Test for the cards_comb's str2int part
     """
 
-    # label_str_list = [
-    #     'P', 'DX', '3', 'K', 'D', '33', '22', '333', '222',
-    #     '3333', '2222', '4333', 'D333', 'D222', '44333', '222AA',
-    #     '76543', 'AKQJ109876543', '554433', 'AAKKQQJJ10109988776655',
-    #     '444333', 'AAAKKKQQQJJJ101010999', '543333', 'DX2222',
-    #     '55443333', '2222AAKK',
-    #     '65444333', 'DXAAAKKK', 'DX2AAAKKKQQQ',
-    #     'DX2AAAKKKQQQJJJ10', 'DX2AAAKKKQQQJJJ10101098',
-    #     '6655444333', '22AAAKKKQQ', '22AAAKKKQQQJJ1010',
-    #     '22AAAKKKQQQJJJ10109988']
-
-    # for label_str in label_str_list:
-
-    #     # label_list = split_handcards(label_str)
-
-    #     index, index_cur, type_descip = label_str2int(label_str)
-
-    #     print(
-    #             '{} is {}, index: {}, total index: {}'
-    #             .format(label_str, type_descip, index_cur, index)
-    #         )
-
     with open(opt.inputFile, 'rt') as f_1:
         cnt = 1
 
@@ -2041,39 +2033,9 @@ if __name__ == "__main__":
                     (np_array_label, current_label), axis=0
                 )
 
-            # print
-            # print('record {} landlord:'.format(cnt))
-            # print(cards_landlord)
-            # print(cards_landlord_array)
-            # print('record {} landlord_down:'.format(cnt))
-            # print(cards_landlord_down)
-            # print(cards_landlord_down_array)
-            # print('record {} landlord_up:'.format(cnt))
-            # print(cards_landlord_up)
-            # print(cards_landlord_up_array)
-            # print('record {} landlord_public:'.format(cnt))
-            # print(cards_landlord_public)
-            # print(cards_landlord_public_array)
-            # print('record of {} landlord game process:'.format(cnt))
-            # print(landlord_game)
-            # print('record of {} landlord_down game process:'.format(cnt))
-            # print(landlord_down_game)
-            # print('record of {} landlord_up game process:'.format(cnt))
-            # print(landlord_up_game)
-            # print('All data for states:')
-            # print(all_data)
-            # print(
-            #     'Type of the all_data: {}, Type of the data element: {}'
-            #     .format(type(all_data), type(all_data[0]))
-            # )
-            # print(
-            #     'Size of the all_data: {}, shape of the data element: {}'
-            #     .format(len(all_data), all_data[0].shape)
-            # )
-            # print('All labels:')
-            # print(all_label)
-            # print('All labels index:')
-            # print(all_label_index)
+            # NOTE: if the numpy array is too big, then it should
+            # be saved to .npy file per 1000 iteration,
+            # and the load from them by pre-calculation of index
             if cnt % 100 == 0:
                 print('record {} over!'.format(cnt))
 
