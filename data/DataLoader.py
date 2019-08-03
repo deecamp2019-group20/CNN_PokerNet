@@ -1,5 +1,7 @@
 import numpy as np
 import argparse
+import os
+# import math
 # import lmdb
 
 parser = argparse.ArgumentParser()
@@ -25,6 +27,13 @@ parser.add_argument(
     type=str,
     help='The generated mdb file save dir',
     default='./train'
+)
+parser.add_argument(
+    '-nT',
+    '--train_num',
+    type=int,
+    help='The number of game process to be train dataset',
+    default=330000
 )
 opt = parser.parse_args()
 print(opt)
@@ -1972,14 +1981,20 @@ if __name__ == "__main__":
     """
 
     with open(opt.inputFile, 'rt') as f_1:
-        cnt = 1
+        cnt_line = 0
+        cnt_npy = 1
 
         np_array_data = None
         np_array_label = None
         np_array_flag = False
+        np_array_data_left = None
+        np_array_label_left = None
 
         for line in f_1:
+            if cnt_line == opt.train_num:
+                break
 
+            cnt_line += 1
             # Got Game Process
             cards = line.split(' Game process:')[0]
             # Got cards parts
@@ -2020,34 +2035,138 @@ if __name__ == "__main__":
             )
 
             if not np_array_flag:
-                np_array_data = np.stack(all_data, axis=0)
-                np_array_label = np.stack(all_label_index, axis=0)
+                # Read a new line of game process after reach or exceed 500
+                # or fresh start
+                if np_array_data_left is None:
+                    np_array_data = np.stack(all_data, axis=0)
+                    np_array_label = np.stack(all_label_index, axis=0)
+                else:
+                    current_data = np.stack(all_data, axis=0)
+                    current_label = np.stack(all_label_index, axis=0)
+                    np_array_data = np.concatenate(
+                        (np_array_data_left, current_data), axis=0
+                    )
+                    np_array_label = np.concatenate(
+                        (np_array_label_left, current_label), axis=0
+                    )
+                    np_array_data_left = None
+                    np_array_label_left = None
+
                 np_array_flag = True
+
             else:
                 current_data = np.stack(all_data, axis=0)
-                np_array_data = np.concatenate(
-                    (np_array_data, current_data), axis=0
-                )
                 current_label = np.stack(all_label_index, axis=0)
-                np_array_label = np.concatenate(
-                    (np_array_label, current_label), axis=0
+
+                if np_array_data.shape[0] + current_data.shape[0] > 500:
+                    overflow_length = (
+                        np_array_data.shape[0] + current_data.shape[0] - 500)
+                    concat_length = current_data.shape[0] - overflow_length
+
+                    np_array_data = np.concatenate(
+                        (np_array_data, current_data[0:concat_length]),
+                        axis=0
+                    )
+                    np_array_label = np.concatenate(
+                        (np_array_label, current_label[0:concat_length]),
+                        axis=0
+                    )
+
+                    print(
+                        'save {} piece of data. '
+                        'State Shape: {}, Label Shape: {}'
+                        .format(
+                            cnt_npy, np_array_data.shape, np_array_label.shape)
+                    )
+                    np.save(
+                        os.path.join(
+                            opt.save_dir, 'data', 'all_state_%d' % cnt_npy),
+                        np_array_data)
+                    np.save(
+                        os.path.join(
+                            opt.save_dir, 'label', 'all_label_%d' % cnt_npy),
+                        np_array_label)
+                    cnt_npy += 1
+
+                    np_array_data_left = current_data[concat_length:]
+                    np_array_label_left = current_label[concat_length:]
+                    np_array_data = None
+                    np_array_label = None
+
+                    np_array_flag = False
+
+                elif np_array_data.shape[0] + current_data.shape[0] == 500:
+                    # save to .npy file, clear buffer
+                    np_array_data = np.concatenate(
+                        (np_array_data, current_data), axis=0
+                    )
+                    np_array_label = np.concatenate(
+                        (np_array_label, current_label), axis=0
+                    )
+
+                    print(
+                        'save {} piece of data. '
+                        'State Shape: {}, Label Shape: {}'
+                        .format(
+                            cnt_npy, np_array_data.shape, np_array_label.shape)
+                    )
+                    np.save(
+                        os.path.join(
+                            opt.save_dir, 'data', 'all_state_%d' % cnt_npy),
+                        np_array_data)
+                    np.save(
+                        os.path.join(
+                            opt.save_dir, 'label', 'all_label_%d' % cnt_npy),
+                        np_array_label)
+                    cnt_npy += 1
+
+                    np_array_data_left = None
+                    np_array_label_left = None
+                    np_array_data = None
+                    np_array_label = None
+
+                    np_array_flag = False
+
+                else:
+                    # concat, keep moving
+                    np_array_data = np.concatenate(
+                        (np_array_data, current_data), axis=0
+                    )
+                    np_array_label = np.concatenate(
+                        (np_array_label, current_label), axis=0
+                    )
+
+        if np_array_flag:
+            if np_array_data is None and np_array_data_left is not None:
+                print(
+                    'save {} piece of data. '
+                    'State Shape: {}, Label Shape: {}'
+                    .format(
+                        cnt_npy, np_array_data_left.shape,
+                        np_array_label_left.shape)
                 )
+                np.save(
+                    os.path.join(
+                        opt.save_dir, 'data', 'all_state_%d' % cnt_npy),
+                    np_array_data_left)
+                np.save(
+                    os.path.join(
+                        opt.save_dir, 'label', 'all_label_%d' % cnt_npy),
+                    np_array_label_left)
+            elif np_array_data is not None:
+                print(
+                    'save {} piece of data. '
+                    'State Shape: {}, Label Shape: {}'
+                    .format(
+                        cnt_npy, np_array_data.shape, np_array_label.shape)
+                )
+                np.save(
+                    os.path.join(
+                        opt.save_dir, 'data', 'all_state_%d' % cnt_npy),
+                    np_array_data)
+                np.save(
+                    os.path.join(
+                        opt.save_dir, 'label', 'all_label_%d' % cnt_npy),
+                    np_array_label)
 
-            # NOTE: if the numpy array is too big, then it should
-            # be saved to .npy file per 1000 iteration,
-            # and the load from them by pre-calculation of index
-            if cnt % 100 == 0:
-                print('record {} over!'.format(cnt))
-
-            cnt += 1
-
-        print(
-            'shape of the np_all_data: {}'
-            .format(np_array_data.shape)
-        )
-        print(
-            'shape of the np_all_label: {}'
-            .format(np_array_label.shape)
-        )
-        np.save('all_state', np_array_data)
-        np.save('all_lable', np_array_label)
+        print('Finished! Total Records: {}'.format(cnt_line))
