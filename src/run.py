@@ -197,7 +197,7 @@ def run():
                 t_init = time.time()
                 with torch.no_grad():
                     for data in valloader:
-                        states, labels = data
+                        states, labels = data[0].to(device), data[1].to(device)
                         outputs = net(states)
                         _, predicted = torch.max(outputs.data, 1)
                         total += labels.size(0)
@@ -242,7 +242,7 @@ def run():
     total = 0
     with torch.no_grad():
         for data in testloader:
-            states, labels = data
+            states, labels = data[0].to(device), data[1].to(device)
             outputs = net(states)
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
