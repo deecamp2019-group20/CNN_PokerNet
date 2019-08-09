@@ -248,8 +248,8 @@ def run():
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
         print(
-            'Making Evaluation on 97128 states, Accuracy: %.3f %%'
-            % (100 * correct / total)
+            'Making Test on %d states, Accuracy: %.3f %%'
+            % (total, 100 * correct / total)
         )
 
 
