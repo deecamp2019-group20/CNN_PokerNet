@@ -1,6 +1,7 @@
 import numpy as np
 import argparse
 import os
+import pandas as pd
 # import math
 # import lmdb
 
@@ -1707,9 +1708,16 @@ def label_int2str(cards_int):
 
     Returns:
         cards_str: the str-style of that specific cards_comb
+        list_index: the int-index list of 15 column of cards_comb
     """
     # TODO: implement this!!!
-    return str(cards_int)
+    # Don't Need to Calculate, just generate a csv file
+    # which contains all kinds of card_comb
+    all_combs = pd.read_csv('./patterns.csv')
+    cards_combs = all_combs.iloc[cards_int]['3':'15']
+    list_index = list(cards_combs)
+    cards_str = all_combs.iloc[cards_int]['key']
+    return cards_str, list_index
 
 
 def generate_game_process(
@@ -1786,7 +1794,7 @@ def generate_game_process(
         elif len(landlord_steps) != len(landlord_down_steps):
             raise ValueError('generated steps with PASS has incorrect size')
     elif game_winner == '2':
-        if len(landlord_steps) != len(landlord_steps):
+        if len(landlord_steps) != len(landlord_up_steps):
             raise ValueError('generated steps with PASS has incorrect size')
         elif len(landlord_steps) != len(landlord_down_steps):
             raise ValueError('generated steps with PASS has incorrect size')
