@@ -227,7 +227,8 @@ class CNNModel(Agent):
             net = resnet.resnetpokernet(num_classes=13707).to(device)
             net.load_state_dict(torch.load(args.model_path)["state_dict"])
             batch_state = np.expand_dims(state, axis=0)
-            batch_state_ = batch_state.to(device)
+            # batch_state_ = batch_state.to(device)
+            batch_state_ = torch.from_numpy(batch_state).float().to(device)
             outputs = net(batch_state_)
             _, pred = torch.topk(outputs, 10)
 
