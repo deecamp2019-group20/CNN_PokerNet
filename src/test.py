@@ -225,7 +225,7 @@ class CNNModel(Agent):
             valid_moves = self.get_moves()
             # Load Trained Net
             net = resnet.resnetpokernet(num_classes=13707).to(device)
-            net.load_state_dict(torch.load(args.model_path))
+            net.load_state_dict(torch.load(args.model_path)["state_dict"])
             batch_state = np.expand_dims(state, axis=0)
             batch_state_ = batch_state.to(device)
             outputs = net(batch_state_)
