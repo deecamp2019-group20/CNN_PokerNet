@@ -16,6 +16,7 @@ import torch.nn as nn
 import torch.optim as optim
 import model.resnet as resnet
 from data.PokerDataSet import PokerDataSet
+from tensorboardX import SummaryWriter
 
 parser = argparse.ArgumentParser(description='Process some integers.')
 parser.add_argument(
@@ -164,8 +165,12 @@ def run():
     # optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
     best_acc_val = 0.0
+
+    # add log writer for tensorboardX
+    writer = SummaryWriter('log')
+
     # Train the Network
-    for epoch in range(20):
+    for epoch in range(12):
         running_loss = 0.0
         for i, data in enumerate(trainloader, 0):
             # get the inputs; data is a list of [inputs, labels]
@@ -188,6 +193,9 @@ def run():
                     '[%d, %5d] loss: %.3f'
                     % (epoch + 1, i + 1, running_loss / 200)
                 )
+                # Add writer to record the traning loss
+                niter = epoch * len(trainloader) + i + 1
+                writer.add_scalar('Train/Loss', running_loss / 200, niter)
                 running_loss = 0.0
 
             # 2000 - eval
@@ -204,6 +212,9 @@ def run():
                         correct += (predicted == labels).sum().item()
                 t_final = time.time()
                 acc = correct / total
+                # Add writer to record the eval acc
+                niter = epoch * len(trainloader) + i + 1
+                writer.add_scalar('Test/Acc', acc, niter)
                 is_best_acc = acc > best_acc_val
                 best_acc_val = max(acc, best_acc_val)
                 print(
