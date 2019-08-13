@@ -2363,14 +2363,12 @@ if __name__ == "__main__":
                     )
                     np.save(
                         os.path.join(
-                            opt.save_dir, 'sa', 'data',
-                            'all_sa_%d' % cnt_sa_npy
+                            opt.save_dir, 'data', 'all_sa_%d' % cnt_sa_npy
                         ), np_sa_data[0:500]
                     )
                     np.save(
                         os.path.join(
-                            opt.save_dir, 'sa', 'label',
-                            'all_sa_label_%d' % cnt_sa_npy
+                            opt.save_dir, 'label', 'all_sa_label_%d' % cnt_sa_npy
                         ), np_sa_label[0:500]
                     )
 
