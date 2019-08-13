@@ -2359,14 +2359,13 @@ if __name__ == "__main__":
                     )
                     np.save(
                         os.path.join(
-                            opt.save_dir, 'sa', 'data',
-                            'all_sa_%d' % cnt_sa_npy
+                            opt.save_dir, 'data', 'all_sa_%d' % cnt_sa_npy
                         ), np_sa_data
                     )
                     np.save(
                         os.path.join(
-                            opt.save_dir, 'sa', 'label',
-                            'all_sa_label%d' % cnt_sa_npy
+                            opt.save_dir, 'label',
+                            'all_sa_label_%d' % cnt_sa_npy
                         ), np_sa_label
                     )
                     cnt_sa_npy += 1
@@ -2395,14 +2394,12 @@ if __name__ == "__main__":
                     )
                     np.save(
                         os.path.join(
-                            opt.save_dir, 'sa', 'data',
-                            'all_sa_%d' % cnt_sa_npy
+                            opt.save_dir, 'data', 'all_sa_%d' % cnt_sa_npy
                         ), np_sa_data
                     )
                     np.save(
                         os.path.join(
-                            opt.save_dir, 'sa', 'label',
-                            'all_label_%d' % cnt_sa_npy
+                            opt.save_dir, 'label', 'all_label_%d' % cnt_sa_npy
                         ), np_sa_label
                     )
                     cnt_sa_npy += 1
@@ -2467,14 +2464,12 @@ if __name__ == "__main__":
                 )
                 np.save(
                     os.path.join(
-                        opt.save_dir, 'sa', 'data',
-                        'all_sa_%d' % cnt_sa_npy
+                        opt.save_dir, 'data', 'all_sa_%d' % cnt_sa_npy
                     ), np_sa_data_left
                 )
                 np.save(
                     os.path.join(
-                        opt.save_dir, 'sa', 'label',
-                        'all_label_%d' % cnt_sa_npy
+                        opt.save_dir, 'label', 'all_label_%d' % cnt_sa_npy
                     ), np_sa_label_left
                 )
             elif np_sa_data is not None:
@@ -2487,14 +2482,12 @@ if __name__ == "__main__":
                 )
                 np.save(
                     os.path.join(
-                        opt.save_dir, 'sa', 'data',
-                        'all_sa_%d' % cnt_sa_npy
+                        opt.save_dir, 'data', 'all_sa_%d' % cnt_sa_npy
                     ), np_sa_data
                 )
                 np.save(
                     os.path.join(
-                        opt.save_dir, 'sa', 'label',
-                        'all_sa_label_%d' % cnt_sa_npy
+                        opt.save_dir, 'label', 'all_sa_label_%d' % cnt_sa_npy
                     ), np_sa_label
                 )
 
