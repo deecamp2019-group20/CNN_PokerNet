@@ -2329,13 +2329,13 @@ if __name__ == "__main__":
                 # Read a new line of game process after reach or exceed 500
                 # or fresh start
                 if np_sa_data_left is None:
-                    if all_sa_pair == []:
+                    if all_sa_pair is None:
                         pass
                     else:
                         np_sa_data = np.stack(all_sa_pair, axis=0)
                         np_sa_label = np.stack(all_sa_label, axis=0)
                 else:
-                    if all_sa_pair == []:
+                    if all_sa_pair is None:
                         pass
                     else:
                         current_sa_data = np.stack(all_sa_pair, axis=0)
@@ -2354,7 +2354,7 @@ if __name__ == "__main__":
                 current_sa_data = np.stack(all_sa_pair, axis=0)
                 current_sa_label = np.stack(all_sa_label, axis=0)
 
-                if np_sa_data == []:
+                if np_sa_data is None:
                     pass
 
                 elif np_sa_data.shape[0] > 500:
@@ -2372,12 +2372,14 @@ if __name__ == "__main__":
                     )
                     np.save(
                         os.path.join(
-                            opt.save_dir, 'data', 'all_sa_%d' % cnt_sa_npy
+                            opt.save_dir, 'data',
+                            'all_sa_%d' % cnt_sa_npy
                         ), np_sa_data[0:500]
                     )
                     np.save(
                         os.path.join(
-                            opt.save_dir, 'label', 'all_sa_label_%d' % cnt_sa_npy
+                            opt.save_dir, 'label',
+                            'all_sa_label_%d' % cnt_sa_npy
                         ), np_sa_label[0:500]
                     )
 
