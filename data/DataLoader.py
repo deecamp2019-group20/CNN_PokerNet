@@ -96,6 +96,10 @@ def split_handcards(cards):
     return hand_cards
 
 
+def findByRow(mat, row):
+    return np.where((mat == row).all(1))[0]
+
+
 def cards_rank_encode(cards):
     r""" Cards rank number encoder for binary array
     Convert a card rank list into binary numpy array
@@ -1804,7 +1808,6 @@ def generate_game_process(
         steps_label: list of labels (string)
         steps_label_index: list of labels (int)
     """
-
     # Save state data and label here
     steps_data = []
     steps_label = []
@@ -1927,7 +1930,8 @@ def generate_game_process(
                 #     'Game_last_move is landlord, '
                 #     'landlord_up: {}'
                 #     'landlord_down: {}'
-                #     .format(landlord_up_last_played, landlord_down_last_played)
+                #     .format(
+                #         landlord_up_last_played, landlord_down_last_played)
                 # )
 
             moves = get_moves(cur_cards_left, game_last_move)
@@ -1939,49 +1943,57 @@ def generate_game_process(
             #     'The Valid moves are as below: {}'
             #     .format(moves)
             # )
-            Flag_label_in_moves = False
-            print('Begain Matching step_label: {}'.format(step_label))
-            for i_m, move in enumerate(moves):
-                if (move == cards_rank_encode_np(split_handcards(step_label))).all():
-                    print('Current Move is: {}'.format(move))
-                    print('Current step_label: {}'.format(step_label))
-                    Flag_label_in_moves = True
-                elif i_m == (len(moves) - 1) and not Flag_label_in_moves:
-                    raise ValueError(
-                        'label {} not in list of valid moves'
-                        'Valid moves: {}'
-                        'landlord handcard: {}'
-                        .format(step_label, moves, landlord_handcard, )
-                    )
-                else:
-                    # Add (state, action) pairs
-                    flip_gate = random.random()
-                    if flip_gate <= 0.5:
-                        # the 2 comparing elements rank1(True Label) < rank2
-                        action_1 = cards_rank_encode(
-                            split_handcards(step_label))
-                        action_2 = cards_rank_encode_np2bi(move)
-                        pair_label = 1
+
+            step_label_np = cards_rank_encode_np(split_handcards(step_label))
+            ans_index = findByRow(moves, step_label_np)
+            if len(ans_index) == 0:
+                # moves from get_moves doesn't include ans_index
+                print(
+                    'step label: {} dose not belong to moves'
+                    .format(step_label_np)
+                )
+                pass
+            elif len(ans_index) == 1:
+                for i_m, move in enumerate(moves):
+                    if (move == ans_index).all():
+                        pass
                     else:
-                        # the 2 comparing elements rank1 > rank2(True Label)
-                        action_1 = cards_rank_encode_np2bi(move)
-                        action_2 = cards_rank_encode(
-                            split_handcards(step_label))
-                        pair_label = -1
-                    state_action_pair_1 = np.concatenate(
-                        (step_data, [action_1]), axis=0
-                    )
-                    state_action_pair_2 = np.concatenate(
-                        (step_data, [action_2]), axis=0
-                    )
-                    state_action_pair.append(
-                        np.stack(
-                            (state_action_pair_1, state_action_pair_2), axis=0
+                        # Add (state, action) pairs
+                        flip_gate = random.random()
+                        if flip_gate <= 0.5:
+                            # rank1(True Label) < rank2
+                            action_1 = cards_rank_encode(split_handcards(
+                                step_label))
+                            action_2 = cards_rank_encode_np2bi(move)
+                            pair_label = 1
+                        else:
+                            # rank1 > rank2(True Label)
+                            action_1 = cards_rank_encode_np2bi(move)
+                            action_2 = cards_rank_encode(split_handcards(
+                                step_label))
+                            pair_label = -1
+                        state_action_pair_1 = np.concatenate(
+                            (step_data, [action_1]), axis=0
                         )
-                    )
-                    state_action_label.append(
-                        pair_label
-                    )
+                        state_action_pair_2 = np.concatenate(
+                            (step_data, [action_2]), axis=0
+                        )
+                        state_action_pair.append(
+                            np.stack(
+                                (state_action_pair_1, state_action_pair_2),
+                                axis=0
+                            )
+                        )
+                        state_action_label.append(
+                            pair_label
+                        )
+
+            else:
+                raise ValueError(
+                    'there should be only 1 matched step_label in moves, '
+                    'got: {}'
+                    .format(len(ans_index))
+                )
 
             # Check whether the game is end or not
             if i == len(landlord_steps) - 1:
@@ -2336,7 +2348,48 @@ if __name__ == "__main__":
                 current_sa_data = np.stack(all_sa_pair, axis=0)
                 current_sa_label = np.stack(all_sa_label, axis=0)
 
-                if np_sa_data.shape[0] + current_sa_data.shape[0] > 500:
+                if np_sa_data.shape[0] > 500:
+                    overflow_length = (
+                        np_sa_data.shape[0] - 500)
+                    concat_length = 500
+
+                    print(
+                        'save {} piece of (state, action) data. (early 500)'
+                        'State-Action Shape: {}, Label Shape: {}'
+                        .format(
+                            cnt_sa_npy, np_sa_data[0:500].shape,
+                            np_sa_label[0:500].shape
+                        )
+                    )
+                    np.save(
+                        os.path.join(
+                            opt.save_dir, 'sa', 'data',
+                            'all_sa_%d' % cnt_sa_npy
+                        ), np_sa_data[0:500]
+                    )
+                    np.save(
+                        os.path.join(
+                            opt.save_dir, 'sa', 'label',
+                            'all_sa_label_%d' % cnt_sa_npy
+                        ), np_sa_label[0:500]
+                    )
+
+                    cnt_sa_npy += 1
+
+                    np_sa_data_left = np.concatenate(
+                        (np_sa_data[500:], current_sa_data),
+                        axis=0
+                    )
+                    np_sa_label_left = np.concatenate(
+                        (np_sa_label[500:], current_sa_label),
+                        axis=0
+                    )
+                    np_sa_data = None
+                    np_sa_label = None
+
+                    np_sa_flag = False
+
+                elif np_sa_data.shape[0] + current_sa_data.shape[0] > 500:
                     overflow_length = (
                         np_sa_data.shape[0] + current_sa_data.shape[0] - 500)
                     concat_length = current_sa_data.shape[0] - overflow_length
@@ -2351,12 +2404,20 @@ if __name__ == "__main__":
                     )
 
                     print(
-                        'save {} piece of (state,action) data. '
+                        'save {} piece of (state,action) data. (>500)'
                         'State-Action Shape: {}, Label Shape: {}'
                         .format(
                             cnt_sa_npy, np_sa_data.shape, np_sa_label.shape
                         )
                     )
+
+                    if (np_sa_data.shape[0] != 500):
+                        raise ValueError(
+                            'the shape of each saved .npy file should be 500 '
+                            'Got: {}'
+                            .format(np_sa_data.shape)
+                        )
+
                     np.save(
                         os.path.join(
                             opt.save_dir, 'data', 'all_sa_%d' % cnt_sa_npy
