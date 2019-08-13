@@ -2329,13 +2329,13 @@ if __name__ == "__main__":
                 # Read a new line of game process after reach or exceed 500
                 # or fresh start
                 if np_sa_data_left is None:
-                    if len(all_sa_pair) == 0:
+                    if all_sa_pair == []:
                         pass
                     else:
                         np_sa_data = np.stack(all_sa_pair, axis=0)
                         np_sa_label = np.stack(all_sa_label, axis=0)
                 else:
-                    if len(all_sa_pair) == 0:
+                    if all_sa_pair == []:
                         pass
                     else:
                         current_sa_data = np.stack(all_sa_pair, axis=0)
@@ -2354,7 +2354,10 @@ if __name__ == "__main__":
                 current_sa_data = np.stack(all_sa_pair, axis=0)
                 current_sa_label = np.stack(all_sa_label, axis=0)
 
-                if np_sa_data.shape[0] > 500:
+                if np_sa_data == []:
+                    pass
+
+                elif np_sa_data.shape[0] > 500:
                     overflow_length = (
                         np_sa_data.shape[0] - 500)
                     concat_length = 500
