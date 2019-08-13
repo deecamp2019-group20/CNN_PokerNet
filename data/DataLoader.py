@@ -2222,6 +2222,9 @@ if __name__ == "__main__":
                 cards_landlord_public, game_process, str(opt.personID)
             )
 
+            if all_sa_pair == []:
+                continue
+
             # NOTE: Processing the binary state numpy ndarray without action
             # if not np_array_flag:
             #     # Read a new line of game process after reach or exceed 500
@@ -2329,17 +2332,29 @@ if __name__ == "__main__":
                 # Read a new line of game process after reach or exceed 500
                 # or fresh start
                 if np_sa_data_left is None:
-                    if all_sa_pair is None:
+                    if all_sa_pair == []:
                         pass
                     else:
-                        np_sa_data = np.stack(all_sa_pair, axis=0)
-                        np_sa_label = np.stack(all_sa_label, axis=0)
+                        try:
+                            np_sa_data = np.stack(all_sa_pair, axis=0)
+                            np_sa_label = np.stack(all_sa_label, axis=0)
+                        except ValueError:
+                            print(
+                                'sa_pair: {}, sa_label: {}'
+                                .format(all_sa_pair, all_sa_label)
+                            )
                 else:
-                    if all_sa_pair is None:
+                    if all_sa_pair == []:
                         pass
                     else:
-                        current_sa_data = np.stack(all_sa_pair, axis=0)
-                        current_sa_label = np.stack(all_sa_label, axis=0)
+                        try:
+                            current_sa_data = np.stack(all_sa_pair, axis=0)
+                            current_sa_label = np.stack(all_sa_label, axis=0)
+                        except ValueError:
+                            print(
+                                'sa_pair: {}, sa_label: {}'
+                                .format(all_sa_pair, all_sa_label)
+                            )
                         np_sa_data = np.concatenate(
                             (np_sa_data_left, current_sa_data), axis=0
                         )
@@ -2351,8 +2366,12 @@ if __name__ == "__main__":
                 np_sa_flag = True
 
             else:
-                current_sa_data = np.stack(all_sa_pair, axis=0)
-                current_sa_label = np.stack(all_sa_label, axis=0)
+                if all_sa_pair == []:
+                    # NOTE: Modified later
+                    continue
+                else:
+                    current_sa_data = np.stack(all_sa_pair, axis=0)
+                    current_sa_label = np.stack(all_sa_label, axis=0)
 
                 if np_sa_data is None:
                     pass
