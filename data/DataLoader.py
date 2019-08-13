@@ -2,8 +2,18 @@ import numpy as np
 import argparse
 import os
 import pandas as pd
+import sys
+sys.path.append('../')
+from game.r import get_moves
+from copy import copy
+import random
 # import math
 # import lmdb
+
+"""
+In engine, this get_moves() is used as below:
+get_moves(self.__cards_left, self.game.last_move)
+"""
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -35,6 +45,13 @@ parser.add_argument(
     type=int,
     help='The number of game process to be train dataset',
     default=330000
+)
+# modified
+parser.add_argument(
+    '--pass',
+    action='store_true',
+    help='obstruct all pass action',
+    default=False
 )
 opt = parser.parse_args()
 print(opt)
@@ -80,7 +97,7 @@ def split_handcards(cards):
 
 
 def cards_rank_encode(cards):
-    r""" Cards rank number encoder
+    r""" Cards rank number encoder for binary array
     Convert a card rank list into binary numpy array
 
     Args:
@@ -105,6 +122,55 @@ def cards_rank_encode(cards):
                 else:
                     binary_array[index][i] = 1
                     break
+
+    return binary_array
+
+
+def cards_rank_encode_np(cards):
+    r""" Cards rank number encoder for numpy array
+    Convert a card rank str list into 15-len numpy array
+
+    Args:
+        cards: A str list of card ranks
+
+    Output:
+        A numpy array which has len of 15
+        which indicare the number of each rank for card
+    """
+    size_array = np.zeros(15, dtype=int)
+    card_ranks = [
+        '3', '4', '5', '6', '7', '8', '9',
+        '10', 'J', 'Q', 'K', 'A', '2', 'X', 'D'
+    ]
+
+    # cards = split_handcards(cards)
+
+    for card in cards:
+        if card != 'P':
+            index = card_ranks.index(card)
+            size_array[index] += 1
+
+    return size_array
+
+
+def cards_rank_encode_np2bi(cards):
+    r""" Cards rank number encoder for 2d binary numpy array
+    Convert a 15-len 1d numpy array to 2d binary numpy array
+
+    Args:
+        cards: A 15-len 1d numpy array, each elem is the count
+        of the cards with relevant rank
+
+    Output:
+        A numpy array which only contains 0 or 1
+        and the size of this array is 15*4
+    """
+    # NOTE. Here we are using the bool type of numpy array
+    binary_array = np.zeros((15, 4), dtype=bool)
+
+    for i in range(15):
+        for j in range(cards[i]):
+            binary_array[i][j] = 1
 
     return binary_array
 
@@ -1739,9 +1805,13 @@ def generate_game_process(
         steps_label_index: list of labels (int)
     """
 
+    # Save state data and label here
     steps_data = []
     steps_label = []
     steps_label_index = []
+    # Save (state, action) pairs here
+    state_action_pair = []
+    state_action_label = []
 
     # temporary multi-state-features
     landlord_public = public
@@ -1769,9 +1839,9 @@ def generate_game_process(
         # NOTE: landlord's handcard should also contain public cards
         landlord_handcard = landlord + public
     elif game_winner == '1':
-        landlord_down_handcard = landlord_down
+        landlord_down_handcard = landlord_down.copy()
     elif game_winner == '2':
-        landlord_up_handcard = landlord_up
+        landlord_up_handcard = landlord_up.copy()
     else:
         raise ValueError(
             'game winner can only be (char)0, 1, 2, got {}'
@@ -1824,6 +1894,94 @@ def generate_game_process(
             steps_data.append(step_data)
             steps_label.append(step_label)
             steps_label_index.append(step_label_index)
+
+            # TODO: Implement this!
+            # NOTE: this section indicate that we should concern actions
+            #       and combine them with state to generate (s,a) pairs
+            # NOTE: should have positive and negative data, which means that
+            #       the data pair of two which would be saved and loaded should
+            #       sometimes see the real-play-out combs in the front,
+            #       sometimes see it behind
+            # get valid actions
+            cur_cards_left = cards_rank_encode_np(landlord_handcard)
+            if landlord_up_last_played != ['P']:
+                game_last_move = cards_rank_encode_np(
+                    landlord_up_last_played
+                )
+                # print(
+                #     'Game_last_move is landlord_up, played:{}'
+                #     .format(landlord_up_last_played)
+                # )
+            elif landlord_down_last_played != ['P']:
+                game_last_move = cards_rank_encode_np(
+                    landlord_down_last_played
+                )
+                # print(
+                #     'Game_last_move is landlord_down, played: {}'
+                #     .format(landlord_down_last_played)
+                # )
+            else:
+                # Then, the landlord should start a new series of combs
+                game_last_move = np.zeros(15, dtype=int)
+                # print(
+                #     'Game_last_move is landlord, '
+                #     'landlord_up: {}'
+                #     'landlord_down: {}'
+                #     .format(landlord_up_last_played, landlord_down_last_played)
+                # )
+
+            moves = get_moves(cur_cards_left, game_last_move)
+            # print(
+            #     'Generated a list of vaid moves. num: {}'
+            #     .format(len(moves))
+            # )
+            # print(
+            #     'The Valid moves are as below: {}'
+            #     .format(moves)
+            # )
+            Flag_label_in_moves = False
+            print('Begain Matching step_label: {}'.format(step_label))
+            for i_m, move in enumerate(moves):
+                if (move == cards_rank_encode_np(split_handcards(step_label))).all():
+                    print('Current Move is: {}'.format(move))
+                    print('Current step_label: {}'.format(step_label))
+                    Flag_label_in_moves = True
+                elif i_m == (len(moves) - 1) and not Flag_label_in_moves:
+                    raise ValueError(
+                        'label {} not in list of valid moves'
+                        'Valid moves: {}'
+                        'landlord handcard: {}'
+                        .format(step_label, moves, landlord_handcard, )
+                    )
+                else:
+                    # Add (state, action) pairs
+                    flip_gate = random.random()
+                    if flip_gate <= 0.5:
+                        # the 2 comparing elements rank1(True Label) < rank2
+                        action_1 = cards_rank_encode(
+                            split_handcards(step_label))
+                        action_2 = cards_rank_encode_np2bi(move)
+                        pair_label = 1
+                    else:
+                        # the 2 comparing elements rank1 > rank2(True Label)
+                        action_1 = cards_rank_encode_np2bi(move)
+                        action_2 = cards_rank_encode(
+                            split_handcards(step_label))
+                        pair_label = -1
+                    state_action_pair_1 = np.concatenate(
+                        (step_data, [action_1]), axis=0
+                    )
+                    state_action_pair_2 = np.concatenate(
+                        (step_data, [action_2]), axis=0
+                    )
+                    state_action_pair.append(
+                        np.stack(
+                            (state_action_pair_1, state_action_pair_2), axis=0
+                        )
+                    )
+                    state_action_label.append(
+                        pair_label
+                    )
 
             # Check whether the game is end or not
             if i == len(landlord_steps) - 1:
@@ -1980,7 +2138,9 @@ def generate_game_process(
                     if elem != 'P':
                         landlord_up_handcard.remove(elem)
 
-    return steps_data, steps_label, steps_label_index
+    return (
+        steps_data, steps_label, steps_label_index,
+        state_action_pair, state_action_label)
 
 
 if __name__ == "__main__":
@@ -1991,12 +2151,19 @@ if __name__ == "__main__":
     with open(opt.inputFile, 'rt') as f_1:
         cnt_line = 0
         cnt_npy = 1
+        cnt_sa_npy = 1
 
         np_array_data = None
         np_array_label = None
         np_array_flag = False
         np_array_data_left = None
         np_array_label_left = None
+
+        np_sa_data = None
+        np_sa_label = None
+        np_sa_flag = False
+        np_sa_data_left = None
+        np_sa_label_left = None
 
         for line in f_1:
             if cnt_line == opt.train_num:
@@ -2037,11 +2204,13 @@ if __name__ == "__main__":
             (landlord_game, landlord_down_game,
                 landlord_up_game) = game_process_with_pass(game_process)
 
-            all_data, all_label, all_label_index = generate_game_process(
+            (all_data, all_label, all_label_index,
+                all_sa_pair, all_sa_label) = generate_game_process(
                 cards_landlord, cards_landlord_down, cards_landlord_up,
                 cards_landlord_public, game_process, str(opt.personID)
             )
 
+            # NOTE: Processing the binary state numpy ndarray without action
             if not np_array_flag:
                 # Read a new line of game process after reach or exceed 500
                 # or fresh start
@@ -2059,7 +2228,6 @@ if __name__ == "__main__":
                     )
                     np_array_data_left = None
                     np_array_label_left = None
-
                 np_array_flag = True
 
             else:
@@ -2144,6 +2312,116 @@ if __name__ == "__main__":
                         (np_array_label, current_label), axis=0
                     )
 
+            # NOTE: Processing the (state,action) pair
+            if not np_sa_flag:
+                # Read a new line of game process after reach or exceed 500
+                # or fresh start
+                if np_sa_data_left is None:
+                    np_sa_data = np.stack(all_sa_pair, axis=0)
+                    np_sa_label = np.stack(all_sa_label, axis=0)
+                else:
+                    current_sa_data = np.stack(all_sa_pair, axis=0)
+                    current_sa_label = np.stack(all_sa_label, axis=0)
+                    np_sa_data = np.concatenate(
+                        (np_sa_data_left, current_sa_data), axis=0
+                    )
+                    np_sa_label = np.concatenate(
+                        (np_sa_label_left, current_sa_label), axis=0
+                    )
+                    np_sa_data_left = None
+                    np_sa_label_left = None
+                np_sa_flag = True
+
+            else:
+                current_sa_data = np.stack(all_sa_pair, axis=0)
+                current_sa_label = np.stack(all_sa_label, axis=0)
+
+                if np_sa_data.shape[0] + current_sa_data.shape[0] > 500:
+                    overflow_length = (
+                        np_sa_data.shape[0] + current_sa_data.shape[0] - 500)
+                    concat_length = current_sa_data.shape[0] - overflow_length
+
+                    np_sa_data = np.concatenate(
+                        (np_sa_data, current_sa_data[0:concat_length]),
+                        axis=0
+                    )
+                    np_sa_label = np.concatenate(
+                        (np_sa_label, current_sa_label[0:concat_length]),
+                        axis=0
+                    )
+
+                    print(
+                        'save {} piece of (state,action) data. '
+                        'State-Action Shape: {}, Label Shape: {}'
+                        .format(
+                            cnt_sa_npy, np_sa_data.shape, np_sa_label.shape
+                        )
+                    )
+                    np.save(
+                        os.path.join(
+                            opt.save_dir, 'sa', 'data',
+                            'all_sa_%d' % cnt_sa_npy
+                        ), np_sa_data
+                    )
+                    np.save(
+                        os.path.join(
+                            opt.save_dir, 'sa', 'label',
+                            'all_sa_label%d' % cnt_sa_npy
+                        ), np_sa_label
+                    )
+                    cnt_sa_npy += 1
+
+                    np_sa_data_left = current_sa_data[concat_length:]
+                    np_sa_label_left = current_sa_label[concat_length:]
+                    np_sa_data = None
+                    np_sa_label = None
+
+                    np_sa_flag = False
+
+                elif np_sa_data.shape[0] + current_sa_data.shape[0] == 500:
+                    # save to .npy file, clear buffer
+                    np_sa_data = np.concatenate(
+                        (np_sa_data, current_sa_data), axis=0
+                    )
+                    np_sa_label = np.concatenate(
+                        (np_sa_label, current_sa_label), axis=0
+                    )
+                    print(
+                        'save {} piece of (state,action) data. '
+                        'State-Action Shape: {}, Label Shape: {}'
+                        .format(
+                            cnt_sa_npy, np_sa_data.shape, np_sa_label.shape
+                        )
+                    )
+                    np.save(
+                        os.path.join(
+                            opt.save_dir, 'sa', 'data',
+                            'all_sa_%d' % cnt_sa_npy
+                        ), np_sa_data
+                    )
+                    np.save(
+                        os.path.join(
+                            opt.save_dir, 'sa', 'label',
+                            'all_label_%d' % cnt_sa_npy
+                        ), np_sa_label
+                    )
+                    cnt_sa_npy += 1
+
+                    np_sa_data_left = None
+                    np_sa_label_left = None
+                    np_sa_data = None
+                    np_sa_label = None
+                    np_sa_flag = False
+                else:
+                    # concat, keep moving
+                    np_sa_data = np.concatenate(
+                        (np_sa_data, current_sa_data), axis=0
+                    )
+                    np_sa_label = np.concatenate(
+                        (np_sa_label, current_sa_label), axis=0
+                    )
+
+        # Finished the loop, write the data in the buffer to file
         if np_array_flag:
             if np_array_data is None and np_array_data_left is not None:
                 print(
@@ -2176,5 +2454,48 @@ if __name__ == "__main__":
                     os.path.join(
                         opt.save_dir, 'label', 'all_label_%d' % cnt_npy),
                     np_array_label)
+
+        if np_sa_flag:
+            if np_sa_data is None and np_sa_data_left is not None:
+                print(
+                    'save {} piece of (state, action) pair data. '
+                    'State-Action Shape: {}, Label Shape: {}'
+                    .format(
+                        cnt_sa_npy, np_sa_data_left.shape,
+                        np_sa_label_left.shape
+                    )
+                )
+                np.save(
+                    os.path.join(
+                        opt.save_dir, 'sa', 'data',
+                        'all_sa_%d' % cnt_sa_npy
+                    ), np_sa_data_left
+                )
+                np.save(
+                    os.path.join(
+                        opt.save_dir, 'sa', 'label',
+                        'all_label_%d' % cnt_sa_npy
+                    ), np_sa_label_left
+                )
+            elif np_sa_data is not None:
+                print(
+                    'save {} piece of (state, action) pair data. '
+                    'State-Action Shape: {}, Label Shape: {}'
+                    .format(
+                        cnt_sa_npy, np_sa_data.shape, np_sa_label.shape
+                    )
+                )
+                np.save(
+                    os.path.join(
+                        opt.save_dir, 'sa', 'data',
+                        'all_sa_%d' % cnt_sa_npy
+                    ), np_sa_data
+                )
+                np.save(
+                    os.path.join(
+                        opt.save_dir, 'sa', 'label',
+                        'all_sa_label_%d' % cnt_sa_npy
+                    ), np_sa_label
+                )
 
         print('Finished! Total Records: {}'.format(cnt_line))
